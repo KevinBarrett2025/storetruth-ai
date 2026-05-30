@@ -121,3 +121,76 @@ export interface ScanRun {
   questionSimulations: AIQuestionSimulation[];
   contentSuggestions: ContentSuggestion[];
 }
+
+export interface ProductDescriptionSummary {
+  textLength: number;
+  textSummary: string;
+  htmlLength: number;
+  htmlSha256: string;
+}
+
+export interface ProductOptionSummary {
+  id: string;
+  name: string;
+  valueCount: number;
+  sampleValues: string[];
+}
+
+export interface ProductVariantSummary {
+  returnedCount: number;
+  sample: Array<{
+    id: string;
+    title: string;
+    selectedOptions: Array<{
+      name: string;
+      value: string;
+    }>;
+  }>;
+}
+
+export interface ProductImageAltTextSummary {
+  returnedCount: number;
+  withAltTextCount: number;
+  missingAltTextCount: number;
+  sampleAltTexts: string[];
+}
+
+export interface ProductSeoSummary {
+  titlePresent: boolean;
+  titleLength: number;
+  descriptionPresent: boolean;
+  descriptionLength: number;
+}
+
+export interface StoreTruthProductSnapshot {
+  productGid: string;
+  title: string;
+  handle: string;
+  status: string;
+  productType: string;
+  vendor: string;
+  tags: string[];
+  description: ProductDescriptionSummary;
+  options: ProductOptionSummary[];
+  variants: ProductVariantSummary;
+  images: ProductImageAltTextSummary;
+  seo: ProductSeoSummary;
+}
+
+export interface ReadOnlyProductScanSource {
+  api: "Shopify Admin GraphQL";
+  queryName: "StoreTruthReadOnlyProductScan";
+  productLimit: number;
+  readOnly: true;
+  fieldsQueried: string[];
+  notes: string[];
+}
+
+export interface ReadOnlyProductReadinessReport {
+  id: string;
+  generatedAt: string;
+  shopDomain: string;
+  source: ReadOnlyProductScanSource;
+  scannedProducts: StoreTruthProductSnapshot[];
+  scan: ScanRun;
+}
