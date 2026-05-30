@@ -47,8 +47,8 @@ The app route renders a JSON preview and a JSON endpoint:
 
 The report includes both the bounded Admin API product sample and the bounded
 public discovery checks. It also includes the bounded policy/FAQ content scan
-when running from `feature/policy-content-scan-v0` or a branch that contains
-that slice.
+and deterministic buyer-question simulation when running from a branch that
+contains those slices.
 
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.
@@ -128,6 +128,34 @@ The local report has this top-level shape:
       "duplicateContentGroups": [],
       "score": 0
     },
+    "findings": []
+  },
+  "questionSimulation": {
+    "method": "local_template_rules",
+    "readOnly": true,
+    "score": 0,
+    "summary": {
+      "totalQuestions": 0,
+      "byStatus": {
+        "answered": 0,
+        "partially_answered": 0,
+        "unanswered": 0,
+        "unclear": 0,
+        "contradiction_risk": 0
+      },
+      "byCategory": {
+        "product_recommendation": 0,
+        "product_comparison": 0,
+        "shipping": 0,
+        "returns_refunds": 0,
+        "warranty_support": 0,
+        "sizing_options": 0,
+        "compatibility_specs": 0,
+        "materials_use_case": 0,
+        "contact_help_faq": 0
+      }
+    },
+    "questions": [],
     "findings": []
   },
   "scan": {

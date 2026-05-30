@@ -10,8 +10,9 @@ import {
   mapDiscoveryToAgentChecks,
 } from "./public-discovery.server";
 import { createPolicyContentReport } from "./policy-content.server";
+import { createBuyerQuestionSimulationReport } from "./question-simulation.server";
 import type {
-  AIQuestionSimulation,
+  BuyerQuestionSimulationReport,
   ContentSuggestion,
   PolicyContentReport,
   ProductReadinessScore,
@@ -23,6 +24,11 @@ import type {
 } from "./types";
 
 export const PRODUCT_SCAN_LIMIT = 10;
+
+interface ScanBuildResult {
+  scan: ScanRun;
+  questionSimulation: BuyerQuestionSimulationReport;
+}
 
 export const READ_ONLY_PRODUCT_SCAN_FIELDS = [
   "products.nodes.id",
@@ -201,7 +207,7 @@ export async function createReadOnlyProductReadinessReport({
       shopDomain,
     }),
   ]);
-  const scan = createScanRunFromProducts({
+  const { questionSimulation, scan } = createScanRunFromProducts({
     generatedAt,
     hasNextPage: result.data.products.pageInfo.hasNextPage,
     productLimit: boundedLimit,
@@ -230,6 +236,7 @@ export async function createReadOnlyProductReadinessReport({
     scannedProducts,
     publicDiscovery,
     policyContent,
+    questionSimulation,
     scan,
   };
 }
@@ -250,7 +257,7 @@ function createScanRunFromProducts({
   publicDiscovery: PublicDiscoveryReport;
   scannedProducts: StoreTruthProductSnapshot[];
   shopDomain: string;
-}): ScanRun {
+}): ScanBuildResult {
   const productScores = scannedProducts.map(createProductReadinessScore);
   const productFindings = createProductFindings(
     scannedProducts,
@@ -259,6 +266,22 @@ function createScanRunFromProducts({
   );
   const findings = [...productFindings, ...publicDiscovery.findings];
   const allFindings = [...findings, ...policyContent.findings];
+  const questionSimulation = createBuyerQuestionSimulationReport({
+    findings: allFindings,
+    generatedAt,
+    policyContent,
+    products: scannedProducts,
+    publicDiscovery,
+  });
+  const finalFindings = [
+    ...allFindings,
+    ...questionSimulation.findings,
+    createScanScopeFinding({
+      hasNextPage,
+      productLimit,
+      returnedProducts: scannedProducts.length,
+    }),
+  ];
   const contentSuggestions = createContentSuggestions(allFindings);
   const products =
     productScores.length === 0
@@ -269,7 +292,7 @@ function createScanRunFromProducts({
         );
   const riskPenalty = Math.min(
     25,
-    allFindings.reduce((penalty, finding) => {
+    finalFindings.reduce((penalty, finding) => {
       if (finding.severity === "high") return penalty + 8;
       if (finding.severity === "medium") return penalty + 4;
       if (finding.severity === "low") return penalty + 2;
@@ -279,45 +302,57 @@ function createScanRunFromProducts({
   const baseScores = {
     products,
     policyFaq: policyContent.coverage.score,
-    aiQuestionCoverage: 0,
+    aiQuestionCoverage: questionSimulation.score,
     agentDiscovery: publicDiscovery.score,
     riskPenalty,
   };
 
   return {
-    id: `read-only-product-scan-${generatedAt.replace(/[:.]/g, "-")}`,
-    shopDomain,
-    status: "completed",
-    startedAt: generatedAt,
-    finishedAt: generatedAt,
-    productCount: scannedProducts.length,
-    scores: {
-      ...baseScores,
-      overall: calculateOverallReadinessScore(baseScores),
-    },
-    findings: [
-      ...allFindings,
-      {
-        id: "finding-scan-scope-limited",
-        severity: hasNextPage ? "info" : "low",
-        category: "product_readiness",
-        resourceType: "store",
-        title: "Product scan is intentionally bounded",
-        description: `This feasibility slice queried at most ${productLimit} products and did not crawl the full catalog.`,
-        evidence: {
-          productLimit,
-          returnedProducts: scannedProducts.length,
-          hasNextPage,
-        },
-        recommendation:
-          "Keep the bounded query while validating fields, scopes, and merchant review workflow.",
-        status: "open",
+    scan: {
+      id: `read-only-product-scan-${generatedAt.replace(/[:.]/g, "-")}`,
+      shopDomain,
+      status: "completed",
+      startedAt: generatedAt,
+      finishedAt: generatedAt,
+      productCount: scannedProducts.length,
+      scores: {
+        ...baseScores,
+        overall: calculateOverallReadinessScore(baseScores),
       },
-    ],
-    productScores,
-    agentDiscoveryChecks: mapDiscoveryToAgentChecks(publicDiscovery),
-    questionSimulations: createQuestionSimulations(scannedProducts),
-    contentSuggestions,
+      findings: finalFindings,
+      productScores,
+      agentDiscoveryChecks: mapDiscoveryToAgentChecks(publicDiscovery),
+      questionSimulations: questionSimulation.questions,
+      contentSuggestions,
+    },
+    questionSimulation,
+  };
+}
+
+function createScanScopeFinding({
+  hasNextPage,
+  productLimit,
+  returnedProducts,
+}: {
+  hasNextPage: boolean;
+  productLimit: number;
+  returnedProducts: number;
+}): ScanFinding {
+  return {
+    id: "finding-scan-scope-limited",
+    severity: hasNextPage ? "info" : "low",
+    category: "product_readiness",
+    resourceType: "store",
+    title: "Product scan is intentionally bounded",
+    description: `This feasibility slice queried at most ${productLimit} products and did not crawl the full catalog.`,
+    evidence: {
+      productLimit,
+      returnedProducts,
+      hasNextPage,
+    },
+    recommendation:
+      "Keep the bounded query while validating fields, scopes, and merchant review workflow.",
+    status: "open",
   };
 }
 
@@ -531,43 +566,6 @@ function createContentSuggestions(findings: ScanFinding[]): ContentSuggestion[] 
       summary:
         "Create a draft fix only for merchant review. This slice does not write product data.",
     }));
-}
-
-function createQuestionSimulations(
-  products: StoreTruthProductSnapshot[],
-): AIQuestionSimulation[] {
-  const thinDescriptionCount = products.filter(
-    (product) => product.description.textLength < 120,
-  ).length;
-  const missingAltTextCount = products.reduce(
-    (total, product) => total + product.images.missingAltTextCount,
-    0,
-  );
-
-  return [
-    {
-      id: "question-product-fit-summary",
-      question: "Can an agent explain what each scanned product is and who it is for?",
-      category: "product_recommendation",
-      resultStatus: thinDescriptionCount > 0 ? "partially_answered" : "answered",
-      sourceSummary:
-        thinDescriptionCount > 0
-          ? `${thinDescriptionCount} scanned product(s) have short descriptions.`
-          : "Scanned products include enough description text for the initial deterministic check.",
-      riskFlags: thinDescriptionCount > 0 ? ["thin_product_descriptions"] : [],
-    },
-    {
-      id: "question-product-visual-context",
-      question: "Can an agent understand product images from available alt text?",
-      category: "materials",
-      resultStatus: missingAltTextCount > 0 ? "partially_answered" : "answered",
-      sourceSummary:
-        missingAltTextCount > 0
-          ? `${missingAltTextCount} scanned image(s) are missing alt text.`
-          : "Scanned product images have alt text where image media was returned.",
-      riskFlags: missingAltTextCount > 0 ? ["missing_image_alt_text"] : [],
-    },
-  ];
 }
 
 function scoreTitle(title: string): number {

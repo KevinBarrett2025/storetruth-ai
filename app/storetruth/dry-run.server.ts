@@ -79,15 +79,32 @@ const questionSimulations: AIQuestionSimulation[] = [
     resultStatus: "partially_answered",
     sourceSummary:
       "Mock data has product title and generic description, but missing capacity and dimensions.",
+    sourceReferences: [
+      {
+        type: "product",
+        productGid: "gid://shopify/Product/dry-run-1",
+        productTitle: "Canvas Weekender Bag",
+        productHandle: "mock-canvas-weekender",
+        label: "Product: Canvas Weekender Bag (mock-canvas-weekender)",
+      },
+    ],
     riskFlags: ["missing_dimensions", "missing_capacity"],
   },
   {
     id: "question-returns",
     question: "Can I return the lamp if it does not match my office?",
-    category: "returns",
-    resultStatus: "missing_source",
+    category: "returns_refunds",
+    resultStatus: "unanswered",
     sourceSummary:
       "Policy content is not queried in the dry run. Feasibility spike should verify read_content coverage.",
+    sourceReferences: [
+      {
+        type: "finding",
+        findingId: "finding-discovery-not-checked",
+        findingCategory: "agent_discovery",
+        label: "Finding: Agent discovery files are queued for feasibility testing",
+      },
+    ],
     riskFlags: ["policy_not_checked"],
   },
 ];

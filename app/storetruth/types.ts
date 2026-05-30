@@ -26,9 +26,33 @@ export type QuestionResultStatus =
   | "answered"
   | "partially_answered"
   | "unanswered"
-  | "contradicted"
-  | "risky"
-  | "missing_source";
+  | "unclear"
+  | "contradiction_risk";
+
+export type BuyerQuestionCategory =
+  | "product_recommendation"
+  | "product_comparison"
+  | "shipping"
+  | "returns_refunds"
+  | "warranty_support"
+  | "sizing_options"
+  | "compatibility_specs"
+  | "materials_use_case"
+  | "contact_help_faq";
+
+export interface QuestionSourceReference {
+  type: "product" | "policy_page" | "discovery_url" | "finding" | "store";
+  productGid?: string;
+  productTitle?: string;
+  productHandle?: string;
+  pageGid?: string;
+  pageTitle?: string;
+  pageHandle?: string;
+  discoveryPath?: PublicDiscoveryPath;
+  findingId?: string;
+  findingCategory?: FindingCategory;
+  label: string;
+}
 
 export interface ProductReadinessScore {
   productGid: string;
@@ -69,17 +93,10 @@ export interface AgentDiscoveryCheck {
 export interface AIQuestionSimulation {
   id: string;
   question: string;
-  category:
-    | "product_recommendation"
-    | "product_comparison"
-    | "shipping"
-    | "returns"
-    | "warranty"
-    | "sizing"
-    | "compatibility"
-    | "materials";
+  category: BuyerQuestionCategory;
   resultStatus: QuestionResultStatus;
   sourceSummary: string;
+  sourceReferences: QuestionSourceReference[];
   riskFlags: string[];
 }
 
@@ -308,6 +325,25 @@ export interface PolicyContentReport {
   findings: ScanFinding[];
 }
 
+export interface QuestionCoverageSummary {
+  totalQuestions: number;
+  byStatus: Record<QuestionResultStatus, number>;
+  byCategory: Record<BuyerQuestionCategory, number>;
+  sourceSignalsUsed: string[];
+}
+
+export interface BuyerQuestionSimulationReport {
+  id: string;
+  generatedAt: string;
+  method: "local_template_rules";
+  readOnly: true;
+  score: number;
+  summary: QuestionCoverageSummary;
+  questions: AIQuestionSimulation[];
+  findings: ScanFinding[];
+  notes: string[];
+}
+
 export interface ReadOnlyProductReadinessReport {
   id: string;
   generatedAt: string;
@@ -316,5 +352,6 @@ export interface ReadOnlyProductReadinessReport {
   scannedProducts: StoreTruthProductSnapshot[];
   publicDiscovery: PublicDiscoveryReport;
   policyContent: PolicyContentReport;
+  questionSimulation: BuyerQuestionSimulationReport;
   scan: ScanRun;
 }
