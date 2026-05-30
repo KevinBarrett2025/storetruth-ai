@@ -46,7 +46,9 @@ The app route renders a JSON preview and a JSON endpoint:
 `/app/product-scan/report`
 
 The report includes both the bounded Admin API product sample and the bounded
-public discovery checks.
+public discovery checks. It also includes the bounded policy/FAQ content scan
+when running from `feature/policy-content-scan-v0` or a branch that contains
+that slice.
 
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.
@@ -110,6 +112,23 @@ The local report has this top-level shape:
       "maxResponseBytes": 65536
     },
     "results": []
+  },
+  "policyContent": {
+    "source": {
+      "api": "Shopify Admin GraphQL",
+      "queryName": "StoreTruthPolicyContentScan",
+      "pageLimit": 25,
+      "readOnly": true
+    },
+    "pages": [],
+    "coverage": {
+      "policies": [],
+      "pageCandidates": [],
+      "thinContentPageGids": [],
+      "duplicateContentGroups": [],
+      "score": 0
+    },
+    "findings": []
   },
   "scan": {
     "status": "completed",

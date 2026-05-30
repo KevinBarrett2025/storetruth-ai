@@ -251,6 +251,63 @@ export interface PublicDiscoveryReport {
   findings: ScanFinding[];
 }
 
+export interface PolicyContentPageSnapshot {
+  pageGid: string;
+  title: string;
+  handle: string;
+  bodyTextLength: number;
+  bodyHtmlLength: number;
+  bodySha256: string;
+  textSummary: string;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+export type PolicyCoverageKey = "shipping" | "returns" | "privacy" | "terms";
+
+export type PageCandidateKey = "contact" | "about" | "help" | "faq";
+
+export interface ContentCoverageSignal<TKind extends string> {
+  key: TKind;
+  label: string;
+  present: boolean;
+  matchedPageGids: string[];
+}
+
+export interface DuplicateContentGroup {
+  bodySha256: string;
+  pageGids: string[];
+}
+
+export interface PolicyContentCoverage {
+  policies: Array<ContentCoverageSignal<PolicyCoverageKey>>;
+  pageCandidates: Array<ContentCoverageSignal<PageCandidateKey>>;
+  thinContentPageGids: string[];
+  duplicateContentGroups: DuplicateContentGroup[];
+  hasNextPage: boolean;
+  score: number;
+}
+
+export interface PolicyContentScanSource {
+  api: "Shopify Admin GraphQL";
+  queryName: "StoreTruthPolicyContentScan";
+  pageLimit: number;
+  readOnly: true;
+  fieldsQueried: string[];
+  notes: string[];
+}
+
+export interface PolicyContentReport {
+  id: string;
+  checkedAt: string;
+  shopDomain: string;
+  source: PolicyContentScanSource;
+  pages: PolicyContentPageSnapshot[];
+  coverage: PolicyContentCoverage;
+  findings: ScanFinding[];
+}
+
 export interface ReadOnlyProductReadinessReport {
   id: string;
   generatedAt: string;
@@ -258,5 +315,6 @@ export interface ReadOnlyProductReadinessReport {
   source: ReadOnlyProductScanSource;
   scannedProducts: StoreTruthProductSnapshot[];
   publicDiscovery: PublicDiscoveryReport;
+  policyContent: PolicyContentReport;
   scan: ScanRun;
 }

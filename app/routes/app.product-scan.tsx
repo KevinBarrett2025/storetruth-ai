@@ -39,6 +39,10 @@ export default function ProductScanPage() {
               label="Discovery score"
               value={report.scan.scores.agentDiscovery}
             />
+            <ScoreBox
+              label="Policy / FAQ score"
+              value={report.scan.scores.policyFaq}
+            />
             <ScoreBox label="Overall score" value={report.scan.scores.overall} />
             <ScoreBox label="Findings" value={report.scan.findings.length} />
           </s-grid>
@@ -71,6 +75,60 @@ export default function ProductScanPage() {
                 {result.warnings.length > 0 ? (
                   <s-paragraph>{result.warnings.join(" ")}</s-paragraph>
                 ) : null}
+              </s-stack>
+            </s-box>
+          ))}
+        </s-stack>
+      </s-section>
+
+      <s-section heading="Policy / FAQ Content">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Checks are based on a bounded read-only Admin API page sample. Page
+            bodies are summarized and hashed rather than stored as full raw
+            content.
+          </s-paragraph>
+
+          <s-grid gridTemplateColumns="repeat(auto-fit, minmax(180px, 1fr))" gap="base">
+            <ScoreBox
+              label="Pages scanned"
+              value={report.policyContent.pages.length}
+            />
+            <ScoreBox
+              label="Policy signals"
+              value={
+                report.policyContent.coverage.policies.filter(
+                  (signal) => signal.present,
+                ).length
+              }
+            />
+            <ScoreBox
+              label="Support signals"
+              value={
+                report.policyContent.coverage.pageCandidates.filter(
+                  (signal) => signal.present,
+                ).length
+              }
+            />
+            <ScoreBox
+              label="Thin pages"
+              value={report.policyContent.coverage.thinContentPageGids.length}
+            />
+          </s-grid>
+
+          {report.policyContent.coverage.policies.map((signal) => (
+            <s-box
+              key={signal.key}
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+            >
+              <s-stack direction="block" gap="small">
+                <s-heading>{signal.label}</s-heading>
+                <s-paragraph>
+                  {signal.present ? "present" : "missing"} ·{" "}
+                  {signal.matchedPageGids.length} matching page candidate(s)
+                </s-paragraph>
               </s-stack>
             </s-box>
           ))}

@@ -9,9 +9,11 @@ import {
   checkPublicDiscovery,
   mapDiscoveryToAgentChecks,
 } from "./public-discovery.server";
+import { createPolicyContentReport } from "./policy-content.server";
 import type {
   AIQuestionSimulation,
   ContentSuggestion,
+  PolicyContentReport,
   ProductReadinessScore,
   PublicDiscoveryReport,
   ReadOnlyProductReadinessReport,
@@ -192,11 +194,18 @@ export async function createReadOnlyProductReadinessReport({
 
   const generatedAt = new Date().toISOString();
   const scannedProducts = result.data.products.nodes.map(mapProductSnapshot);
-  const publicDiscovery = await checkPublicDiscovery(shopDomain);
+  const [publicDiscovery, policyContent] = await Promise.all([
+    checkPublicDiscovery(shopDomain),
+    createPolicyContentReport({
+      adminGraphql,
+      shopDomain,
+    }),
+  ]);
   const scan = createScanRunFromProducts({
     generatedAt,
     hasNextPage: result.data.products.pageInfo.hasNextPage,
     productLimit: boundedLimit,
+    policyContent,
     publicDiscovery,
     scannedProducts,
     shopDomain,
@@ -220,6 +229,7 @@ export async function createReadOnlyProductReadinessReport({
     },
     scannedProducts,
     publicDiscovery,
+    policyContent,
     scan,
   };
 }
@@ -227,6 +237,7 @@ export async function createReadOnlyProductReadinessReport({
 function createScanRunFromProducts({
   generatedAt,
   hasNextPage,
+  policyContent,
   productLimit,
   publicDiscovery,
   scannedProducts,
@@ -234,6 +245,7 @@ function createScanRunFromProducts({
 }: {
   generatedAt: string;
   hasNextPage: boolean;
+  policyContent: PolicyContentReport;
   productLimit: number;
   publicDiscovery: PublicDiscoveryReport;
   scannedProducts: StoreTruthProductSnapshot[];
@@ -246,7 +258,8 @@ function createScanRunFromProducts({
     hasNextPage,
   );
   const findings = [...productFindings, ...publicDiscovery.findings];
-  const contentSuggestions = createContentSuggestions(findings);
+  const allFindings = [...findings, ...policyContent.findings];
+  const contentSuggestions = createContentSuggestions(allFindings);
   const products =
     productScores.length === 0
       ? 0
@@ -256,7 +269,7 @@ function createScanRunFromProducts({
         );
   const riskPenalty = Math.min(
     25,
-    findings.reduce((penalty, finding) => {
+    allFindings.reduce((penalty, finding) => {
       if (finding.severity === "high") return penalty + 8;
       if (finding.severity === "medium") return penalty + 4;
       if (finding.severity === "low") return penalty + 2;
@@ -265,7 +278,7 @@ function createScanRunFromProducts({
   );
   const baseScores = {
     products,
-    policyFaq: 0,
+    policyFaq: policyContent.coverage.score,
     aiQuestionCoverage: 0,
     agentDiscovery: publicDiscovery.score,
     riskPenalty,
@@ -283,7 +296,7 @@ function createScanRunFromProducts({
       overall: calculateOverallReadinessScore(baseScores),
     },
     findings: [
-      ...findings,
+      ...allFindings,
       {
         id: "finding-scan-scope-limited",
         severity: hasNextPage ? "info" : "low",
