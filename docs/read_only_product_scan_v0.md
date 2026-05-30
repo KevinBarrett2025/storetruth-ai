@@ -48,7 +48,8 @@ The app route renders a JSON preview and a JSON endpoint:
 The report includes both the bounded Admin API product sample and the bounded
 public discovery checks. It also includes the bounded policy/FAQ content scan
 and deterministic buyer-question simulation when running from a branch that
-contains those slices.
+contains those slices. Merchant review workflow V0 adds local-only review items
+and draft suggestions to the same report.
 
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.
@@ -157,6 +158,25 @@ The local report has this top-level shape:
     },
     "questions": [],
     "findings": []
+  },
+  "merchantReview": {
+    "readOnly": true,
+    "persistence": "local_report_only",
+    "summary": {
+      "totalItems": 0,
+      "byStatus": {
+        "new": 0,
+        "reviewed": 0,
+        "needs_fix": 0,
+        "dismissed": 0,
+        "drafted": 0,
+        "approved_for_later": 0
+      },
+      "draftSuggestionCount": 0,
+      "needsFixCount": 0
+    },
+    "items": [],
+    "draftSuggestions": []
   },
   "scan": {
     "status": "completed",

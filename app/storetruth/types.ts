@@ -41,7 +41,13 @@ export type BuyerQuestionCategory =
   | "contact_help_faq";
 
 export interface QuestionSourceReference {
-  type: "product" | "policy_page" | "discovery_url" | "finding" | "store";
+  type:
+    | "product"
+    | "policy_page"
+    | "discovery_url"
+    | "finding"
+    | "question"
+    | "store";
   productGid?: string;
   productTitle?: string;
   productHandle?: string;
@@ -51,6 +57,8 @@ export interface QuestionSourceReference {
   discoveryPath?: PublicDiscoveryPath;
   findingId?: string;
   findingCategory?: FindingCategory;
+  questionId?: string;
+  questionCategory?: BuyerQuestionCategory;
   label: string;
 }
 
@@ -344,6 +352,72 @@ export interface BuyerQuestionSimulationReport {
   notes: string[];
 }
 
+export type MerchantReviewStatus =
+  | "new"
+  | "reviewed"
+  | "needs_fix"
+  | "dismissed"
+  | "drafted"
+  | "approved_for_later";
+
+export type MerchantReviewItemKind =
+  | "finding"
+  | "buyer_question"
+  | "draft_suggestion";
+
+export type MerchantDraftSuggestionType =
+  | "add_shipping_policy_page"
+  | "add_return_refund_policy_page"
+  | "improve_thin_product_description"
+  | "add_size_option_guidance"
+  | "add_faq_contact_help_page"
+  | "review_agent_discovery_file"
+  | "review_contradictory_source"
+  | "improve_product_source_data";
+
+export interface MerchantReviewItem {
+  id: string;
+  kind: MerchantReviewItemKind;
+  status: MerchantReviewStatus;
+  title: string;
+  summary: string;
+  priority: FindingSeverity;
+  sourceReferences: QuestionSourceReference[];
+  linkedFindingIds: string[];
+  linkedQuestionIds: string[];
+  recommendedNextStep: string;
+}
+
+export interface MerchantDraftSuggestion {
+  id: string;
+  type: MerchantDraftSuggestionType;
+  status: "drafted";
+  title: string;
+  summary: string;
+  sourceReferences: QuestionSourceReference[];
+  linkedFindingIds: string[];
+  linkedQuestionIds: string[];
+  guardrails: string[];
+}
+
+export interface MerchantReviewSummary {
+  totalItems: number;
+  byStatus: Record<MerchantReviewStatus, number>;
+  draftSuggestionCount: number;
+  needsFixCount: number;
+}
+
+export interface MerchantReviewReport {
+  id: string;
+  generatedAt: string;
+  readOnly: true;
+  persistence: "local_report_only";
+  summary: MerchantReviewSummary;
+  items: MerchantReviewItem[];
+  draftSuggestions: MerchantDraftSuggestion[];
+  notes: string[];
+}
+
 export interface ReadOnlyProductReadinessReport {
   id: string;
   generatedAt: string;
@@ -353,5 +427,6 @@ export interface ReadOnlyProductReadinessReport {
   publicDiscovery: PublicDiscoveryReport;
   policyContent: PolicyContentReport;
   questionSimulation: BuyerQuestionSimulationReport;
+  merchantReview: MerchantReviewReport;
   scan: ScanRun;
 }

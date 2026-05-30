@@ -49,6 +49,10 @@ export default function ProductScanPage() {
             />
             <ScoreBox label="Overall score" value={report.scan.scores.overall} />
             <ScoreBox label="Findings" value={report.scan.findings.length} />
+            <ScoreBox
+              label="Review drafts"
+              value={report.merchantReview.summary.draftSuggestionCount}
+            />
           </s-grid>
 
           <s-link href={jsonReportPath}>Open JSON report</s-link>
@@ -184,6 +188,56 @@ export default function ProductScanPage() {
                 {question.riskFlags.length > 0 ? (
                   <s-paragraph>Flags: {question.riskFlags.join(", ")}</s-paragraph>
                 ) : null}
+              </s-stack>
+            </s-box>
+          ))}
+        </s-stack>
+      </s-section>
+
+      <s-section heading="Merchant Review">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Review states and suggestions are generated locally for triage only.
+            This slice does not persist review state or write back to Shopify.
+          </s-paragraph>
+
+          <s-grid gridTemplateColumns="repeat(auto-fit, minmax(180px, 1fr))" gap="base">
+            <ScoreBox
+              label="Review items"
+              value={report.merchantReview.summary.totalItems}
+            />
+            <ScoreBox
+              label="Needs fix"
+              value={report.merchantReview.summary.needsFixCount}
+            />
+            <ScoreBox
+              label="Drafted"
+              value={report.merchantReview.summary.byStatus.drafted}
+            />
+            <ScoreBox
+              label="New"
+              value={report.merchantReview.summary.byStatus.new}
+            />
+          </s-grid>
+
+          {report.merchantReview.draftSuggestions.map((suggestion) => (
+            <s-box
+              key={suggestion.id}
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+            >
+              <s-stack direction="block" gap="small">
+                <s-heading>{suggestion.title}</s-heading>
+                <s-paragraph>
+                  {suggestion.type} · {suggestion.status}
+                </s-paragraph>
+                <s-paragraph>{suggestion.summary}</s-paragraph>
+                <s-paragraph>
+                  Sources: {suggestion.sourceReferences.length}. Linked findings:{" "}
+                  {suggestion.linkedFindingIds.length}. Linked questions:{" "}
+                  {suggestion.linkedQuestionIds.length}.
+                </s-paragraph>
               </s-stack>
             </s-box>
           ))}

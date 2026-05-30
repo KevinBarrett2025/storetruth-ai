@@ -11,8 +11,10 @@ import {
 } from "./public-discovery.server";
 import { createPolicyContentReport } from "./policy-content.server";
 import { createBuyerQuestionSimulationReport } from "./question-simulation.server";
+import { createMerchantReviewReport } from "./merchant-review.server";
 import type {
   BuyerQuestionSimulationReport,
+  MerchantReviewReport,
   ContentSuggestion,
   PolicyContentReport,
   ProductReadinessScore,
@@ -28,6 +30,7 @@ export const PRODUCT_SCAN_LIMIT = 10;
 interface ScanBuildResult {
   scan: ScanRun;
   questionSimulation: BuyerQuestionSimulationReport;
+  merchantReview: MerchantReviewReport;
 }
 
 export const READ_ONLY_PRODUCT_SCAN_FIELDS = [
@@ -207,7 +210,7 @@ export async function createReadOnlyProductReadinessReport({
       shopDomain,
     }),
   ]);
-  const { questionSimulation, scan } = createScanRunFromProducts({
+  const { merchantReview, questionSimulation, scan } = createScanRunFromProducts({
     generatedAt,
     hasNextPage: result.data.products.pageInfo.hasNextPage,
     productLimit: boundedLimit,
@@ -237,6 +240,7 @@ export async function createReadOnlyProductReadinessReport({
     publicDiscovery,
     policyContent,
     questionSimulation,
+    merchantReview,
     scan,
   };
 }
@@ -282,6 +286,14 @@ function createScanRunFromProducts({
       returnedProducts: scannedProducts.length,
     }),
   ];
+  const merchantReview = createMerchantReviewReport({
+    findings: finalFindings,
+    generatedAt,
+    policyContent,
+    products: scannedProducts,
+    publicDiscovery,
+    questionSimulation,
+  });
   const contentSuggestions = createContentSuggestions(allFindings);
   const products =
     productScores.length === 0
@@ -326,6 +338,7 @@ function createScanRunFromProducts({
       contentSuggestions,
     },
     questionSimulation,
+    merchantReview,
   };
 }
 
