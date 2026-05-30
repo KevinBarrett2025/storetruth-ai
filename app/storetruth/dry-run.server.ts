@@ -65,7 +65,7 @@ const agentDiscoveryChecks: AgentDiscoveryCheck[] = [
     summary: "TODO: Check crawl rules without making ranking or traffic claims.",
   },
   {
-    path: "sitemap",
+    path: "/sitemap.xml",
     status: "not_checked",
     summary: "TODO: Discover and fetch sitemap URLs where public and reachable.",
   },
@@ -119,7 +119,13 @@ const findings: ScanFinding[] = [
     description:
       "The dry-run slice records the discovery paths but does not fetch public storefront files yet.",
     evidence: {
-      paths: ["/agents.md", "/llms.txt", "/llms-full.txt", "/robots.txt", "sitemap"],
+      paths: [
+        "/agents.md",
+        "/llms.txt",
+        "/llms-full.txt",
+        "/robots.txt",
+        "/sitemap.xml",
+      ],
       source: "local dry-run mock",
     },
     recommendation:

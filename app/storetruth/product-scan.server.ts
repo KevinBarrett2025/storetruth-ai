@@ -5,11 +5,15 @@ import {
   calculateOverallReadinessScore,
   calculateProductReadinessScore,
 } from "./readiness.server";
+import {
+  checkPublicDiscovery,
+  mapDiscoveryToAgentChecks,
+} from "./public-discovery.server";
 import type {
-  AgentDiscoveryCheck,
   AIQuestionSimulation,
   ContentSuggestion,
   ProductReadinessScore,
+  PublicDiscoveryReport,
   ReadOnlyProductReadinessReport,
   ScanFinding,
   ScanRun,
@@ -188,10 +192,12 @@ export async function createReadOnlyProductReadinessReport({
 
   const generatedAt = new Date().toISOString();
   const scannedProducts = result.data.products.nodes.map(mapProductSnapshot);
+  const publicDiscovery = await checkPublicDiscovery(shopDomain);
   const scan = createScanRunFromProducts({
     generatedAt,
     hasNextPage: result.data.products.pageInfo.hasNextPage,
     productLimit: boundedLimit,
+    publicDiscovery,
     scannedProducts,
     shopDomain,
   });
@@ -213,6 +219,7 @@ export async function createReadOnlyProductReadinessReport({
       ],
     },
     scannedProducts,
+    publicDiscovery,
     scan,
   };
 }
@@ -221,17 +228,24 @@ function createScanRunFromProducts({
   generatedAt,
   hasNextPage,
   productLimit,
+  publicDiscovery,
   scannedProducts,
   shopDomain,
 }: {
   generatedAt: string;
   hasNextPage: boolean;
   productLimit: number;
+  publicDiscovery: PublicDiscoveryReport;
   scannedProducts: StoreTruthProductSnapshot[];
   shopDomain: string;
 }): ScanRun {
   const productScores = scannedProducts.map(createProductReadinessScore);
-  const findings = createProductFindings(scannedProducts, productScores, hasNextPage);
+  const productFindings = createProductFindings(
+    scannedProducts,
+    productScores,
+    hasNextPage,
+  );
+  const findings = [...productFindings, ...publicDiscovery.findings];
   const contentSuggestions = createContentSuggestions(findings);
   const products =
     productScores.length === 0
@@ -253,7 +267,7 @@ function createScanRunFromProducts({
     products,
     policyFaq: 0,
     aiQuestionCoverage: 0,
-    agentDiscovery: 0,
+    agentDiscovery: publicDiscovery.score,
     riskPenalty,
   };
 
@@ -288,7 +302,7 @@ function createScanRunFromProducts({
       },
     ],
     productScores,
-    agentDiscoveryChecks: createNotCheckedDiscoveryChecks(),
+    agentDiscoveryChecks: mapDiscoveryToAgentChecks(publicDiscovery),
     questionSimulations: createQuestionSimulations(scannedProducts),
     contentSuggestions,
   };
@@ -504,36 +518,6 @@ function createContentSuggestions(findings: ScanFinding[]): ContentSuggestion[] 
       summary:
         "Create a draft fix only for merchant review. This slice does not write product data.",
     }));
-}
-
-function createNotCheckedDiscoveryChecks(): AgentDiscoveryCheck[] {
-  return [
-    {
-      path: "/agents.md",
-      status: "not_checked",
-      summary: "Not checked in the read-only product scan slice.",
-    },
-    {
-      path: "/llms.txt",
-      status: "not_checked",
-      summary: "Not checked in the read-only product scan slice.",
-    },
-    {
-      path: "/llms-full.txt",
-      status: "not_checked",
-      summary: "Not checked in the read-only product scan slice.",
-    },
-    {
-      path: "/robots.txt",
-      status: "not_checked",
-      summary: "Not checked in the read-only product scan slice.",
-    },
-    {
-      path: "sitemap",
-      status: "not_checked",
-      summary: "Not checked in the read-only product scan slice.",
-    },
-  ];
 }
 
 function createQuestionSimulations(

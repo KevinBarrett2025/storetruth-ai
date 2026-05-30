@@ -46,8 +46,22 @@ export interface ProductReadinessScore {
 }
 
 export interface AgentDiscoveryCheck {
-  path: "/agents.md" | "/llms.txt" | "/llms-full.txt" | "/robots.txt" | "sitemap";
-  status: "not_checked" | "reachable" | "missing" | "blocked" | "error";
+  path:
+    | "/agents.md"
+    | "/llms.txt"
+    | "/llms-full.txt"
+    | "/robots.txt"
+    | "/sitemap.xml";
+  status:
+    | "not_checked"
+    | "reachable"
+    | "missing"
+    | "empty"
+    | "blocked"
+    | "timeout"
+    | "oversized"
+    | "unsupported_content_type"
+    | "error";
   statusCode?: number;
   summary: string;
 }
@@ -186,11 +200,63 @@ export interface ReadOnlyProductScanSource {
   notes: string[];
 }
 
+export type PublicDiscoveryPath =
+  | "/robots.txt"
+  | "/sitemap.xml"
+  | "/agents.md"
+  | "/llms.txt"
+  | "/llms-full.txt";
+
+export type PublicDiscoveryStatus =
+  | "reachable"
+  | "missing"
+  | "empty"
+  | "blocked"
+  | "timeout"
+  | "oversized"
+  | "unsupported_content_type"
+  | "error";
+
+export interface PublicDiscoveryCheckResult {
+  path: PublicDiscoveryPath;
+  url: string;
+  status: PublicDiscoveryStatus;
+  reachable: boolean;
+  statusCode?: number;
+  contentType?: string;
+  responseSizeBytes: number;
+  contentSha256?: string;
+  snippet?: string;
+  warnings: string[];
+  durationMs: number;
+}
+
+export interface PublicDiscoverySafetyLimits {
+  method: "GET";
+  httpsOnly: true;
+  sameDomainOnly: true;
+  redirectPolicy: "manual";
+  timeoutMs: number;
+  maxResponseBytes: number;
+  paths: PublicDiscoveryPath[];
+}
+
+export interface PublicDiscoveryReport {
+  checkedAt: string;
+  shopDomain: string;
+  baseUrl: string;
+  score: number;
+  limits: PublicDiscoverySafetyLimits;
+  results: PublicDiscoveryCheckResult[];
+  findings: ScanFinding[];
+}
+
 export interface ReadOnlyProductReadinessReport {
   id: string;
   generatedAt: string;
   shopDomain: string;
   source: ReadOnlyProductScanSource;
   scannedProducts: StoreTruthProductSnapshot[];
+  publicDiscovery: PublicDiscoveryReport;
   scan: ScanRun;
 }

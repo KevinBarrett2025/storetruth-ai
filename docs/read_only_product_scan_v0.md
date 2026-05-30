@@ -45,6 +45,9 @@ The app route renders a JSON preview and a JSON endpoint:
 
 `/app/product-scan/report`
 
+The report includes both the bounded Admin API product sample and the bounded
+public discovery checks.
+
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.
 
@@ -96,6 +99,18 @@ The local report has this top-level shape:
     "fieldsQueried": []
   },
   "scannedProducts": [],
+  "publicDiscovery": {
+    "score": 0,
+    "limits": {
+      "method": "GET",
+      "httpsOnly": true,
+      "sameDomainOnly": true,
+      "redirectPolicy": "manual",
+      "timeoutMs": 3000,
+      "maxResponseBytes": 65536
+    },
+    "results": []
+  },
   "scan": {
     "status": "completed",
     "scores": {},

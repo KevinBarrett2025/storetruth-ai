@@ -35,11 +35,45 @@ export default function ProductScanPage() {
           <s-grid gridTemplateColumns="repeat(auto-fit, minmax(160px, 1fr))" gap="base">
             <ScoreBox label="Products scanned" value={report.scan.productCount} />
             <ScoreBox label="Product score" value={report.scan.scores.products} />
+            <ScoreBox
+              label="Discovery score"
+              value={report.scan.scores.agentDiscovery}
+            />
             <ScoreBox label="Overall score" value={report.scan.scores.overall} />
             <ScoreBox label="Findings" value={report.scan.findings.length} />
           </s-grid>
 
           <s-link href={jsonReportPath}>Open JSON report</s-link>
+        </s-stack>
+      </s-section>
+
+      <s-section heading="Public Discovery">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Checks are limited to GET requests for five HTTPS URLs on{" "}
+            {report.shopDomain}. Redirects are not followed.
+          </s-paragraph>
+
+          {report.publicDiscovery.results.map((result) => (
+            <s-box
+              key={result.path}
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+            >
+              <s-stack direction="block" gap="small">
+                <s-heading>{result.path}</s-heading>
+                <s-paragraph>
+                  {result.status} · HTTP {result.statusCode ?? "n/a"} ·{" "}
+                  {result.contentType ?? "unknown content type"} ·{" "}
+                  {result.responseSizeBytes} bytes
+                </s-paragraph>
+                {result.warnings.length > 0 ? (
+                  <s-paragraph>{result.warnings.join(" ")}</s-paragraph>
+                ) : null}
+              </s-stack>
+            </s-box>
+          ))}
         </s-stack>
       </s-section>
 
