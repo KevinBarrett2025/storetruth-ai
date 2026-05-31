@@ -78,6 +78,15 @@ section. The same data is included in the JSON endpoint:
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.
 
+## Page-session status controls
+
+Branches that include local review state UI V0 add a status control for each
+merchant review item on the `Product Scan` page. These controls update React
+component state only.
+
+Status changes are temporary. They are not saved to the JSON report endpoint,
+database, browser storage, Shopify, or any external service.
+
 ## Report shape
 
 The readiness report now includes:

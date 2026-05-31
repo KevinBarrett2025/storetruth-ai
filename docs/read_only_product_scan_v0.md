@@ -49,7 +49,8 @@ The report includes both the bounded Admin API product sample and the bounded
 public discovery checks. It also includes the bounded policy/FAQ content scan
 and deterministic buyer-question simulation when running from a branch that
 contains those slices. Merchant review workflow V0 adds local-only review items
-and draft suggestions to the same report.
+and draft suggestions to the same report. Local review state UI V0 adds
+page-session status controls for those review items without persistence.
 
 Both routes are authenticated through the embedded app and return `404` when
 `NODE_ENV=production`.

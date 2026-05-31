@@ -1,9 +1,20 @@
+import { useMemo, useState } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { authenticate } from "../shopify.server";
 import { createReadOnlyProductReadinessReport } from "../storetruth/product-scan.server";
+import type { MerchantReviewStatus } from "../storetruth/types";
+
+const MERCHANT_REVIEW_STATUSES: MerchantReviewStatus[] = [
+  "new",
+  "reviewed",
+  "needs_fix",
+  "dismissed",
+  "drafted",
+  "approved_for_later",
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   assertDeveloperOnlyRoute();
@@ -21,6 +32,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function ProductScanPage() {
   const { report, jsonReportPath } = useLoaderData<typeof loader>();
+  const initialReviewStatuses = useMemo(() => {
+    return Object.fromEntries(
+      report.merchantReview.items.map((item) => [item.id, item.status]),
+    ) as Record<string, MerchantReviewStatus>;
+  }, [report.merchantReview.items]);
+  const [reviewStatuses, setReviewStatuses] =
+    useState<Record<string, MerchantReviewStatus>>(initialReviewStatuses);
+  const temporaryStatusChanges = report.merchantReview.items.filter((item) => {
+    return reviewStatuses[item.id] !== item.status;
+  }).length;
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      MERCHANT_REVIEW_STATUSES.map((status) => [status, 0]),
+    ) as Record<MerchantReviewStatus, number>;
+
+    for (const item of report.merchantReview.items) {
+      counts[reviewStatuses[item.id] ?? item.status] += 1;
+    }
+
+    return counts;
+  }, [report.merchantReview.items, reviewStatuses]);
+
+  const updateReviewStatus = (
+    itemId: string,
+    status: MerchantReviewStatus,
+  ) => {
+    setReviewStatuses((current) => ({
+      ...current,
+      [itemId]: status,
+    }));
+  };
 
   return (
     <s-page heading="Read-only Product Scan">
@@ -206,37 +248,39 @@ export default function ProductScanPage() {
               label="Review items"
               value={report.merchantReview.summary.totalItems}
             />
-            <ScoreBox
-              label="Needs fix"
-              value={report.merchantReview.summary.needsFixCount}
-            />
-            <ScoreBox
-              label="Drafted"
-              value={report.merchantReview.summary.byStatus.drafted}
-            />
-            <ScoreBox
-              label="New"
-              value={report.merchantReview.summary.byStatus.new}
-            />
+            <ScoreBox label="Needs fix" value={statusCounts.needs_fix} />
+            <ScoreBox label="Drafted" value={statusCounts.drafted} />
+            <ScoreBox label="Session changes" value={temporaryStatusChanges} />
           </s-grid>
 
-          {report.merchantReview.draftSuggestions.map((suggestion) => (
+          <s-paragraph>
+            Status changes below are temporary for this page session. They are not
+            saved, persisted, or written back to Shopify.
+          </s-paragraph>
+
+          {report.merchantReview.items.map((item) => (
             <s-box
-              key={suggestion.id}
+              key={item.id}
               padding="base"
               borderWidth="base"
               borderRadius="base"
             >
               <s-stack direction="block" gap="small">
-                <s-heading>{suggestion.title}</s-heading>
+                <s-heading>{item.title}</s-heading>
                 <s-paragraph>
-                  {suggestion.type} · {suggestion.status}
+                  {item.kind} · priority {item.priority} · default status{" "}
+                  {item.status}
                 </s-paragraph>
-                <s-paragraph>{suggestion.summary}</s-paragraph>
+                <ReviewStatusSelect
+                  itemId={item.id}
+                  status={reviewStatuses[item.id] ?? item.status}
+                  onChange={updateReviewStatus}
+                />
+                <s-paragraph>{item.summary}</s-paragraph>
                 <s-paragraph>
-                  Sources: {suggestion.sourceReferences.length}. Linked findings:{" "}
-                  {suggestion.linkedFindingIds.length}. Linked questions:{" "}
-                  {suggestion.linkedQuestionIds.length}.
+                  Sources: {item.sourceReferences.length}. Linked findings:{" "}
+                  {item.linkedFindingIds.length}. Linked questions:{" "}
+                  {item.linkedQuestionIds.length}.
                 </s-paragraph>
               </s-stack>
             </s-box>
@@ -289,6 +333,40 @@ export default function ProductScanPage() {
         </pre>
       </s-section>
     </s-page>
+  );
+}
+
+function ReviewStatusSelect({
+  itemId,
+  onChange,
+  status,
+}: {
+  itemId: string;
+  onChange: (itemId: string, status: MerchantReviewStatus) => void;
+  status: MerchantReviewStatus;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 6, maxWidth: 280 }}>
+      <span style={{ fontSize: 12, fontWeight: 600 }}>Session status</span>
+      <select
+        value={status}
+        onChange={(event) => {
+          onChange(itemId, event.currentTarget.value as MerchantReviewStatus);
+        }}
+        style={{
+          border: "1px solid #8a8a8a",
+          borderRadius: 6,
+          font: "inherit",
+          padding: "8px 10px",
+        }}
+      >
+        {MERCHANT_REVIEW_STATUSES.map((option) => (
+          <option key={option} value={option}>
+            {option.replace(/_/g, " ")}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
