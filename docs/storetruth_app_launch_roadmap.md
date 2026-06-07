@@ -26,9 +26,13 @@ without an explicit approved future workflow.
 
 ## B. Current repository status
 
-- Current branch: `feature/review-filtering-v0`
+- Current branch: `main`
 - Current feature commit: `fc0ec45a535e02e6ea450e9c141b6f226aeeabce`
 - Current `main` commit before merge: `8c90c5b15c6c1cf09f3aca44df2b2587ad88463d`
+- Fast-forwarded `main` commit before post-merge roadmap status update:
+  `882c7b3bba8168ac86d0f78cbf00987f3ba7d9c7`
+- Final `main` commit after this roadmap status update: Needs verification from
+  Git after commit; a committed file cannot contain its own resulting SHA.
 - Package/runtime stack: Shopify CLI React Router app, React 18, React Router
   7, TypeScript 5.9, Vite 6, `@shopify/shopify-app-react-router` 1.1,
   App Bridge React, Shopify web components, Prisma session storage, Node
@@ -122,8 +126,8 @@ without an explicit approved future workflow.
 
 ### Review filtering
 
-- 🟡 In progress / partial: `feature/review-filtering-v0` adds local status,
-  source, and priority filtering. Merge to `main` is pending in this pass.
+- ✅ Complete: `feature/review-filtering-v0` adds local status, source, and
+  priority filtering and has been fast-forward merged into `main`.
 - Evidence: `fc0ec45` (`Add review filtering V0`),
   `docs/review_filtering_v0.md`.
 
@@ -141,7 +145,9 @@ without an explicit approved future workflow.
 - Branch: `feature/review-filtering-v0`
 - Commit: `fc0ec45a535e02e6ea450e9c141b6f226aeeabce`
 - Status before merge: 🟡 In progress / partial
-- Merge status: Needs verification until this pass fast-forwards `main`.
+- Merge status: ✅ Complete; fast-forwarded into `main`.
+- Fast-forwarded `main` commit before post-merge roadmap status update:
+  `882c7b3bba8168ac86d0f78cbf00987f3ba7d9c7`
 
 What it adds:
 
@@ -168,7 +174,17 @@ What it intentionally does not add:
 
 Validation status:
 
-- Needs verification in this pass before merge.
+- ✅ Complete on feature branch before merge:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+  - `git diff --cached --check`
+- ✅ Complete on merged `main` before this post-merge roadmap status update:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
 
 ## E. Remaining work before a credible beta
 
@@ -365,11 +381,11 @@ Proposed local-only scope:
 - no Shopify writes
 - no new Shopify scopes
 
-Do not start this branch until `feature/review-filtering-v0` has been reviewed,
-merged, and pushed.
+Do not start this branch during the review-filtering merge pass.
 
 ## I. Roadmap update log
 
 | Date | Branch or commit | Change | Validation | Next step |
 | --- | --- | --- | --- | --- |
 | 2026-06-07 | `feature/review-filtering-v0` | Created canonical launch roadmap and repo-local reporting instruction while review-filtering merge was pending. | Needs verification before merge. | Validate, fast-forward `main`, push, and update merge status. |
+| 2026-06-07 | `main` at `882c7b3` before this status update | Fast-forward merged review filtering and roadmap foundation into `main`; updated roadmap merge status and next branch recommendation. | `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed before this status update. | Commit this roadmap status update, run final validation, push `main`, then start `feature/review-sorting-v0` only when requested. |
