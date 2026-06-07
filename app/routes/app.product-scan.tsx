@@ -5,7 +5,11 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { authenticate } from "../shopify.server";
 import { createReadOnlyProductReadinessReport } from "../storetruth/product-scan.server";
-import type { MerchantReviewStatus } from "../storetruth/types";
+import type {
+  FindingSeverity,
+  MerchantReviewItem,
+  MerchantReviewStatus,
+} from "../storetruth/types";
 
 const MERCHANT_REVIEW_STATUSES: MerchantReviewStatus[] = [
   "new",
@@ -14,6 +18,39 @@ const MERCHANT_REVIEW_STATUSES: MerchantReviewStatus[] = [
   "dismissed",
   "drafted",
   "approved_for_later",
+];
+
+type ReviewStatusFilter = "all" | MerchantReviewStatus;
+type ReviewSourceFilter =
+  | "all"
+  | "product"
+  | "public_discovery"
+  | "policy_content"
+  | "buyer_question";
+type ReviewPriorityFilter = "all" | FindingSeverity;
+
+const REVIEW_STATUS_FILTERS: ReviewStatusFilter[] = [
+  "all",
+  ...MERCHANT_REVIEW_STATUSES,
+];
+
+const REVIEW_SOURCE_FILTERS: Array<{
+  label: string;
+  value: ReviewSourceFilter;
+}> = [
+  { label: "All", value: "all" },
+  { label: "Product", value: "product" },
+  { label: "Public discovery", value: "public_discovery" },
+  { label: "Policy / content", value: "policy_content" },
+  { label: "Buyer question", value: "buyer_question" },
+];
+
+const REVIEW_PRIORITY_FILTERS: ReviewPriorityFilter[] = [
+  "all",
+  "info",
+  "low",
+  "medium",
+  "high",
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -39,9 +76,32 @@ export default function ProductScanPage() {
   }, [report.merchantReview.items]);
   const [reviewStatuses, setReviewStatuses] =
     useState<Record<string, MerchantReviewStatus>>(initialReviewStatuses);
+  const [statusFilter, setStatusFilter] =
+    useState<ReviewStatusFilter>("all");
+  const [sourceFilter, setSourceFilter] =
+    useState<ReviewSourceFilter>("all");
+  const [priorityFilter, setPriorityFilter] =
+    useState<ReviewPriorityFilter>("all");
   const temporaryStatusChanges = report.merchantReview.items.filter((item) => {
     return reviewStatuses[item.id] !== item.status;
   }).length;
+  const filteredReviewItems = useMemo(() => {
+    return report.merchantReview.items.filter((item) =>
+      reviewItemMatchesFilters({
+        item,
+        priorityFilter,
+        sourceFilter,
+        status: reviewStatuses[item.id] ?? item.status,
+        statusFilter,
+      }),
+    );
+  }, [
+    priorityFilter,
+    report.merchantReview.items,
+    reviewStatuses,
+    sourceFilter,
+    statusFilter,
+  ]);
   const statusCounts = useMemo(() => {
     const counts = Object.fromEntries(
       MERCHANT_REVIEW_STATUSES.map((status) => [status, 0]),
@@ -63,6 +123,15 @@ export default function ProductScanPage() {
       [itemId]: status,
     }));
   };
+  const clearReviewFilters = () => {
+    setStatusFilter("all");
+    setSourceFilter("all");
+    setPriorityFilter("all");
+  };
+  const hasActiveReviewFilters =
+    statusFilter !== "all" ||
+    sourceFilter !== "all" ||
+    priorityFilter !== "all";
 
   return (
     <s-page heading="Read-only Product Scan">
@@ -258,7 +327,77 @@ export default function ProductScanPage() {
             saved, persisted, or written back to Shopify.
           </s-paragraph>
 
-          {report.merchantReview.items.map((item) => (
+          <s-box padding="base" borderWidth="base" borderRadius="base">
+            <s-stack direction="block" gap="small">
+              <s-heading>Review filters</s-heading>
+              <s-paragraph>
+                Filters are temporary for this page session and are not saved.
+              </s-paragraph>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 12,
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                }}
+              >
+                <ReviewFilterSelect
+                  label="Status"
+                  options={REVIEW_STATUS_FILTERS.map((option) => ({
+                    label: formatReviewToken(option),
+                    value: option,
+                  }))}
+                  value={statusFilter}
+                  onChange={(value) =>
+                    setStatusFilter(value as ReviewStatusFilter)
+                  }
+                />
+                <ReviewFilterSelect
+                  label="Source"
+                  options={REVIEW_SOURCE_FILTERS}
+                  value={sourceFilter}
+                  onChange={(value) =>
+                    setSourceFilter(value as ReviewSourceFilter)
+                  }
+                />
+                <ReviewFilterSelect
+                  label="Priority"
+                  options={REVIEW_PRIORITY_FILTERS.map((option) => ({
+                    label: formatReviewToken(option),
+                    value: option,
+                  }))}
+                  value={priorityFilter}
+                  onChange={(value) =>
+                    setPriorityFilter(value as ReviewPriorityFilter)
+                  }
+                />
+              </div>
+              <s-paragraph>
+                Showing {filteredReviewItems.length} of{" "}
+                {report.merchantReview.items.length} review items.
+              </s-paragraph>
+              <button
+                type="button"
+                disabled={!hasActiveReviewFilters}
+                onClick={clearReviewFilters}
+                style={{
+                  border: "1px solid #8a8a8a",
+                  borderRadius: 6,
+                  cursor: hasActiveReviewFilters ? "pointer" : "default",
+                  font: "inherit",
+                  maxWidth: 160,
+                  padding: "8px 10px",
+                }}
+              >
+                Clear filters
+              </button>
+            </s-stack>
+          </s-box>
+
+          {filteredReviewItems.length === 0 ? (
+            <s-paragraph>No review items match the current filters.</s-paragraph>
+          ) : null}
+
+          {filteredReviewItems.map((item) => (
             <s-box
               key={item.id}
               padding="base"
@@ -269,7 +408,7 @@ export default function ProductScanPage() {
                 <s-heading>{item.title}</s-heading>
                 <s-paragraph>
                   {item.kind} · priority {item.priority} · default status{" "}
-                  {item.status}
+                  {item.status} · source {reviewSourceLabel(item)}
                 </s-paragraph>
                 <ReviewStatusSelect
                   itemId={item.id}
@@ -336,6 +475,42 @@ export default function ProductScanPage() {
   );
 }
 
+function ReviewFilterSelect({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 6 }}>
+      <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>
+      <select
+        value={value}
+        onChange={(event) => {
+          onChange(event.currentTarget.value);
+        }}
+        style={{
+          border: "1px solid #8a8a8a",
+          borderRadius: 6,
+          font: "inherit",
+          padding: "8px 10px",
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function ReviewStatusSelect({
   itemId,
   onChange,
@@ -368,6 +543,104 @@ function ReviewStatusSelect({
       </select>
     </label>
   );
+}
+
+function reviewItemMatchesFilters({
+  item,
+  priorityFilter,
+  sourceFilter,
+  status,
+  statusFilter,
+}: {
+  item: MerchantReviewItem;
+  priorityFilter: ReviewPriorityFilter;
+  sourceFilter: ReviewSourceFilter;
+  status: MerchantReviewStatus;
+  statusFilter: ReviewStatusFilter;
+}) {
+  if (statusFilter !== "all" && status !== statusFilter) {
+    return false;
+  }
+
+  if (sourceFilter !== "all" && !reviewItemMatchesSource(item, sourceFilter)) {
+    return false;
+  }
+
+  if (priorityFilter !== "all" && item.priority !== priorityFilter) {
+    return false;
+  }
+
+  return true;
+}
+
+function reviewItemMatchesSource(
+  item: MerchantReviewItem,
+  sourceFilter: Exclude<ReviewSourceFilter, "all">,
+) {
+  if (
+    sourceFilter === "buyer_question" &&
+    (item.kind === "buyer_question" || item.linkedQuestionIds.length > 0)
+  ) {
+    return true;
+  }
+
+  return item.sourceReferences.some((reference) => {
+    if (sourceFilter === "product") {
+      return (
+        reference.type === "product" ||
+        Boolean(reference.productGid) ||
+        reference.findingCategory === "product_readiness"
+      );
+    }
+
+    if (sourceFilter === "public_discovery") {
+      return (
+        reference.type === "discovery_url" ||
+        Boolean(reference.discoveryPath) ||
+        reference.findingCategory === "agent_discovery"
+      );
+    }
+
+    if (sourceFilter === "policy_content") {
+      return (
+        reference.type === "policy_page" ||
+        Boolean(reference.pageGid) ||
+        reference.findingCategory === "policy_faq"
+      );
+    }
+
+    return (
+      reference.type === "question" ||
+      Boolean(reference.questionId) ||
+      Boolean(reference.questionCategory)
+    );
+  });
+}
+
+function reviewSourceLabel(item: MerchantReviewItem) {
+  if (reviewItemMatchesSource(item, "buyer_question")) {
+    return "buyer question";
+  }
+
+  if (reviewItemMatchesSource(item, "product")) {
+    return "product";
+  }
+
+  if (reviewItemMatchesSource(item, "public_discovery")) {
+    return "public discovery";
+  }
+
+  if (reviewItemMatchesSource(item, "policy_content")) {
+    return "policy / content";
+  }
+
+  return "general";
+}
+
+function formatReviewToken(value: string) {
+  return value === "all"
+    ? "All"
+    : value.replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
 function ScoreBox({ label, value }: { label: string; value: number }) {
